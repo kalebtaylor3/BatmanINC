@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Batman Reading Checklist</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #13171d;
+    --panel-2: #191f27;
+    --text: #f3f4f6;
+    --muted: #a7b0be;
+    --accent: #f4d35e;
+    --accent-2: #c8a93b;
+    --border: #2a313c;
+    --done: #1d3b2a;
+    --blackmirror: #211a2f;
+    --danger: #8d2f2f;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(circle at top, rgba(244,211,94,.08), transparent 30%),
+      linear-gradient(180deg, #090b0e 0%, #0b0d10 100%);
+    color: var(--text);
+  }
+
+  .wrap {
+    width: min(1000px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 42px 0 72px;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, #151a21, #0f1217);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.35);
+    margin-bottom: 22px;
+  }
+
+  .eyebrow {
+    color: var(--accent);
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 5vw, 54px);
+    line-height: 1;
+    letter-spacing: -.03em;
+  }
+
+  .subtitle {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.55;
+    max-width: 760px;
+  }
+
+  .progress-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .progress-track {
+    height: 14px;
+    background: #232a34;
+    border: 1px solid #303844;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+    transition: width .2s ease;
+  }
+
+  .progress-text {
+    font-weight: 800;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .stats {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+
+  button {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font: inherit;
+    cursor: pointer;
+    transition: .15s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+    border-color: #48515f;
+  }
+
+  button.primary {
+    background: var(--accent);
+    color: #101216;
+    border-color: var(--accent);
+    font-weight: 800;
+  }
+
+  button.danger {
+    color: #ffd7d7;
+  }
+
+  .section {
+    margin-top: 24px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 800;
+    margin: 0 0 10px 4px;
+  }
+
+  .list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .issue {
+    display: grid;
+    grid-template-columns: auto 48px 1fr;
+    gap: 14px;
+    align-items: start;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 15px 16px;
+    transition: .15s ease;
+  }
+
+  .issue:hover {
+    background: var(--panel-2);
+    transform: translateY(-1px);
+  }
+
+  .issue.black-mirror {
+    background: var(--blackmirror);
+    border-color: #3a2e50;
+  }
+
+  .issue.done {
+    background: var(--done);
+    border-color: #2f6443;
+    opacity: .82;
+  }
+
+  .issue.done .series,
+  .issue.done .issue-no {
+    text-decoration: line-through;
+    color: #a6b7aa;
+  }
+
+  input[type="checkbox"] {
+    margin-top: 3px;
+    width: 22px;
+    height: 22px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .order {
+    color: #7f8a99;
+    font-size: 13px;
+    padding-top: 4px;
+  }
+
+  .series {
+    font-weight: 750;
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .issue-no {
+    color: var(--accent);
+    font-weight: 800;
+    margin-left: 6px;
+  }
+
+  .note {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .footer {
+    margin-top: 28px;
+    color: #778292;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 650px) {
+    .wrap { width: min(100% - 18px, 1000px); padding-top: 18px; }
+    .hero { padding: 20px; border-radius: 18px; }
+    .issue { grid-template-columns: auto 34px 1fr; gap: 10px; padding: 13px; }
+    .progress-grid { grid-template-columns: 1fr; }
+    .progress-text { justify-self: start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Batman Reading Tracker</div>
+    <h1>Return of Bruce Wayne → Black Mirror → Batman Inc.</h1>
+    <p class="subtitle">
+      Your custom reading order from Bruce being blasted through time, through Dick Grayson's
+      <strong>The Black Mirror</strong>, and into Grant Morrison's full Batman Incorporated / Leviathan finale.
+      Your progress is saved automatically in this browser.
+    </p>
+
+    <div class="progress-grid">
+      <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="progressText" class="progress-text">0 / 49</div>
+    </div>
+    <div id="stats" class="stats">0% complete</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" id="showAllBtn">Show All</button>
+    <button id="hideReadBtn">Hide Read Issues</button>
+    <button id="jumpBtn">Jump to Next Unread</button>
+    <button class="danger" id="resetBtn">Reset Progress</button>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="footer">
+    Offline checklist • Progress saved with localStorage • 49 issues total
+  </div>
+</div>
+
+<script>
+const issues = [{"order": 1, "series": "Final Crisis", "issue": "#6", "note": "Darkseid hits Bruce with the Omega Sanction."}, {"order": 2, "series": "Final Crisis", "issue": "#7", "note": "Bruce is revealed to have survived and been displaced through time."}, {"order": 3, "series": "Batman", "issue": "#701", "note": "Bruce's perspective on R.I.P. and Final Crisis."}, {"order": 4, "series": "Batman", "issue": "#702", "note": "Bridges Final Crisis into Bruce's time-lost journey."}, {"order": 5, "series": "Batman: The Return of Bruce Wayne", "issue": "#1", "note": "Bruce's journey through different eras begins."}, {"order": 6, "series": "Batman: The Return of Bruce Wayne", "issue": "#2", "note": ""}, {"order": 7, "series": "Batman: The Return of Bruce Wayne", "issue": "#3", "note": ""}, {"order": 8, "series": "Batman: The Return of Bruce Wayne", "issue": "#4", "note": ""}, {"order": 9, "series": "Batman: The Return of Bruce Wayne", "issue": "#5", "note": ""}, {"order": 10, "series": "Batman: The Return of Bruce Wayne", "issue": "#6", "note": "Bruce's time-travel story reaches its conclusion."}, {"order": 11, "series": "Batman and Robin (2009)", "issue": "#13", "note": "Dick Grayson is Batman; Damian is Robin."}, {"order": 12, "series": "Batman and Robin (2009)", "issue": "#14", "note": ""}, {"order": 13, "series": "Batman and Robin (2009)", "issue": "#15", "note": ""}, {"order": 14, "series": "Batman and Robin (2009)", "issue": "#16", "note": "Ties directly into Bruce's return."}, {"order": 15, "series": "Batman: The Return", "issue": "#1", "note": "Bruce is officially back and lays out the idea that becomes Batman Incorporated."}, {"order": 16, "series": "Detective Comics — The Black Mirror", "issue": "#871", "note": "Start of The Black Mirror. Dick Grayson is Batman in Gotham."}, {"order": 17, "series": "Detective Comics — The Black Mirror", "issue": "#872", "note": ""}, {"order": 18, "series": "Detective Comics — The Black Mirror", "issue": "#873", "note": ""}, {"order": 19, "series": "Detective Comics — The Black Mirror", "issue": "#874", "note": ""}, {"order": 20, "series": "Detective Comics — The Black Mirror", "issue": "#875", "note": ""}, {"order": 21, "series": "Detective Comics — The Black Mirror", "issue": "#876", "note": ""}, {"order": 22, "series": "Detective Comics — The Black Mirror", "issue": "#877", "note": ""}, {"order": 23, "series": "Detective Comics — The Black Mirror", "issue": "#878", "note": ""}, {"order": 24, "series": "Detective Comics — The Black Mirror", "issue": "#879", "note": ""}, {"order": 25, "series": "Detective Comics — The Black Mirror", "issue": "#880", "note": ""}, {"order": 26, "series": "Detective Comics — The Black Mirror", "issue": "#881", "note": "End of The Black Mirror."}, {"order": 27, "series": "Batman Incorporated (2010)", "issue": "#1", "note": "Bruce begins Batman Inc. and expands Batman globally."}, {"order": 28, "series": "Batman Incorporated (2010)", "issue": "#2", "note": ""}, {"order": 29, "series": "Batman Incorporated (2010)", "issue": "#3", "note": ""}, {"order": 30, "series": "Batman Incorporated (2010)", "issue": "#4", "note": ""}, {"order": 31, "series": "Batman Incorporated (2010)", "issue": "#5", "note": ""}, {"order": 32, "series": "Batman Incorporated (2010)", "issue": "#6", "note": ""}, {"order": 33, "series": "Batman Incorporated (2010)", "issue": "#7", "note": ""}, {"order": 34, "series": "Batman Incorporated (2010)", "issue": "#8", "note": "End of the original Batman Incorporated run."}, {"order": 35, "series": "Batman Incorporated: Leviathan Strikes!", "issue": "#1", "note": "Finale of the pre-New 52 Batman Inc. story and setup for Leviathan."}, {"order": 36, "series": "Batman Incorporated (2012)", "issue": "#0", "note": "Setup issue; placed here for a smooth collected-story reading order."}, {"order": 37, "series": "Batman Incorporated (2012)", "issue": "#1", "note": "Morrison's Batman Inc. finale begins."}, {"order": 38, "series": "Batman Incorporated (2012)", "issue": "#2", "note": ""}, {"order": 39, "series": "Batman Incorporated (2012)", "issue": "#3", "note": ""}, {"order": 40, "series": "Batman Incorporated (2012)", "issue": "#4", "note": ""}, {"order": 41, "series": "Batman Incorporated (2012)", "issue": "#5", "note": ""}, {"order": 42, "series": "Batman Incorporated (2012)", "issue": "#6", "note": ""}, {"order": 43, "series": "Batman Incorporated (2012)", "issue": "#7", "note": ""}, {"order": 44, "series": "Batman Incorporated (2012)", "issue": "#8", "note": ""}, {"order": 45, "series": "Batman Incorporated (2012)", "issue": "#9", "note": ""}, {"order": 46, "series": "Batman Incorporated (2012)", "issue": "#10", "note": ""}, {"order": 47, "series": "Batman Incorporated (2012)", "issue": "#11", "note": ""}, {"order": 48, "series": "Batman Incorporated (2012)", "issue": "#12", "note": ""}, {"order": 49, "series": "Batman Incorporated (2012)", "issue": "#13", "note": "End of Grant Morrison's Batman Incorporated saga."}];
+const storageKey = "batman-reading-checklist-v1";
+let hideRead = false;
+
+const groups = [
+  ["Bruce Falls / Final Crisis", [1,2,3,4]],
+  ["Lost in Time", [5,6,7,8,9,10]],
+  ["Dick & Damian / Bruce Returns", [11,12,13,14,15]],
+  ["The Black Mirror", Array.from({length:11}, (_,i)=>16+i)],
+  ["Batman Incorporated (2010)", Array.from({length:8}, (_,i)=>27+i)],
+  ["Leviathan Bridge", [35]],
+  ["Batman Incorporated (2012)", Array.from({length:14}, (_,i)=>36+i)],
+];
+
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(progress) {
+  localStorage.setItem(storageKey, JSON.stringify(progress));
+}
+
+let progress = loadProgress();
+
+function render() {
+  const root = document.getElementById("sections");
+  root.innerHTML = "";
+
+  for (const [title, orders] of groups) {
+    const section = document.createElement("section");
+    section.className = "section";
+
+    const heading = document.createElement("h2");
+    heading.className = "section-title";
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.className = "list";
+
+    for (const order of orders) {
+      const item = issues.find(x => x.order === order);
+      const done = !!progress[item.order];
+
+      const row = document.createElement("label");
+      row.className = "issue" +
+        (item.series.includes("Black Mirror") ? " black-mirror" : "") +
+        (done ? " done" : "") +
+        (hideRead && done ? " hidden" : "");
+      row.id = "issue-" + item.order;
+
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = done;
+      box.addEventListener("change", () => {
+        progress[item.order] = box.checked;
+        saveProgress(progress);
+        render();
+      });
+
+      const orderEl = document.createElement("div");
+      orderEl.className = "order";
+      orderEl.textContent = String(item.order).padStart(2, "0");
+
+      const content = document.createElement("div");
+      const titleEl = document.createElement("div");
+      titleEl.innerHTML = `<span class="series">${item.series}</span><span class="issue-no">${item.issue}</span>`;
+      content.appendChild(titleEl);
+
+      if (item.note) {
+        const note = document.createElement("div");
+        note.className = "note";
+        note.textContent = item.note;
+        content.appendChild(note);
+      }
+
+      row.appendChild(box);
+      row.appendChild(orderEl);
+      row.appendChild(content);
+      list.appendChild(row);
+    }
+
+    section.appendChild(list);
+    root.appendChild(section);
+  }
+
+  updateProgress();
+}
+
+function updateProgress() {
+  const completed = issues.filter(x => progress[x.order]).length;
+  const percent = Math.round((completed / issues.length) * 100);
+  document.getElementById("progressText").textContent = `${completed} / ${issues.length}`;
+  document.getElementById("stats").textContent = `${percent}% complete`;
+  document.getElementById("progressFill").style.width = `${percent}%`;
+}
+
+document.getElementById("hideReadBtn").addEventListener("click", () => {
+  hideRead = true;
+  render();
+});
+
+document.getElementById("showAllBtn").addEventListener("click", () => {
+  hideRead = false;
+  render();
+});
+
+document.getElementById("jumpBtn").addEventListener("click", () => {
+  const next = issues.find(x => !progress[x.order]);
+  if (!next) {
+    alert("You finished the whole reading list. 🦇");
+    return;
+  }
+  hideRead = false;
+  render();
+  requestAnimationFrame(() => {
+    document.getElementById("issue-" + next.order)?.scrollIntoView({behavior:"smooth", block:"center"});
+  });
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (confirm("Reset all reading progress?")) {
+    progress = {};
+    saveProgress(progress);
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
