@@ -21,10 +21,6 @@
 
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="sync.js"></script>
-  
   body {
     margin: 0;
     min-height: 100vh;
@@ -254,7 +250,7 @@
     <p class="subtitle">
       Your custom reading order from Bruce being blasted through time, through Dick Grayson's
       <strong>The Black Mirror</strong>, and into Grant Morrison's full Batman Incorporated / Leviathan finale.
-      Your progress is saved automatically in this browser.
+      Your progress is saved locally and can sync across your PC, MacBook, and phone when you sign in.
     </p>
 
     <div class="progress-grid">
@@ -274,7 +270,7 @@
   <div id="sections"></div>
 
   <div class="footer">
-    Offline checklist • Progress saved with localStorage • 49 issues total
+    Batman reading checklist • Local backup + Supabase cloud sync • 49 issues total
   </div>
 </div>
 
@@ -413,5 +409,323 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 
 render();
 </script>
+
+<!-- Supabase browser client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+/*
+  Batman INC Cross-Device Sync
+  Supabase project: bwovdylryxmmpfjatnqe
+
+  Uses the Supabase publishable key (safe for browser use with RLS enabled).
+  IMPORTANT: In Supabase, run the batman_progress SQL setup once and add:
+  https://kalebtaylor3.github.io/BatmanINC/
+  to Authentication > URL Configuration > Redirect URLs.
+*/
+(() => {
+  "use strict";
+
+  const SUPABASE_URL = "https://bwovdylryxmmpfjatnqe.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_S91xlot8elDhgiyh-LhFLQ_LXsA8PfV";
+  const TABLE = "batman_progress";
+  const SAVE_DELAY_MS = 350;
+
+  if (!window.supabase?.createClient) {
+    console.error("[Batman Sync] Supabase browser library failed to load.");
+    return;
+  }
+
+  // The original tracker above already defines progress, saveProgress(), and render().
+  if (
+    typeof saveProgress !== "function" ||
+    typeof render !== "function" ||
+    typeof progress === "undefined"
+  ) {
+    console.error("[Batman Sync] Original tracker variables were not found.");
+    return;
+  }
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  // Keep the original localStorage save as a fallback/offline copy.
+  const saveLocal = saveProgress;
+
+  let currentUser = null;
+  let saveTimer = null;
+  let loadingCloud = false;
+  let lastCloudJson = "";
+
+  // ---------- Cloud Sync UI ----------
+  const panel = document.createElement("div");
+  panel.id = "cloudSyncPanel";
+  panel.style.cssText = `
+    margin: 14px 0 20px;
+    padding: 14px 16px;
+    border: 1px solid #2a313c;
+    border-radius: 14px;
+    background: #13171d;
+    color: #f3f4f6;
+    box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  `;
+
+  panel.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <strong style="color:#f4d35e;">☁ Cloud Sync</strong>
+      <span id="cloudSyncStatus" style="color:#a7b0be;font-size:13px;">
+        Checking sign-in…
+      </span>
+    </div>
+
+    <div id="cloudLoggedOut" style="margin-top:10px;display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input
+          id="cloudEmail"
+          type="email"
+          autocomplete="email"
+          placeholder="your@email.com"
+          style="
+            flex:1 1 220px;
+            min-width:0;
+            border:1px solid #2a313c;
+            border-radius:10px;
+            background:#0b0d10;
+            color:#f3f4f6;
+            padding:10px 12px;
+            font:inherit;
+          "
+        >
+        <button id="cloudLoginBtn" type="button">Email me a sign-in link</button>
+      </div>
+      <div id="cloudLoginMessage"
+           style="margin-top:8px;color:#a7b0be;font-size:12px;"></div>
+    </div>
+
+    <div id="cloudLoggedIn"
+         style="margin-top:10px;display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span id="cloudUser" style="color:#a7b0be;font-size:13px;"></span>
+      <button id="cloudRefreshBtn" type="button">Sync Now</button>
+      <button id="cloudLogoutBtn" type="button">Sign Out</button>
+    </div>
+  `;
+
+  const toolbar = document.querySelector(".toolbar");
+  if (toolbar?.parentNode) {
+    toolbar.parentNode.insertBefore(panel, toolbar);
+  } else {
+    document.querySelector(".wrap")?.prepend(panel);
+  }
+
+  const statusEl = panel.querySelector("#cloudSyncStatus");
+  const loggedOutEl = panel.querySelector("#cloudLoggedOut");
+  const loggedInEl = panel.querySelector("#cloudLoggedIn");
+  const emailEl = panel.querySelector("#cloudEmail");
+  const loginBtn = panel.querySelector("#cloudLoginBtn");
+  const loginMessageEl = panel.querySelector("#cloudLoginMessage");
+  const cloudUserEl = panel.querySelector("#cloudUser");
+  const refreshBtn = panel.querySelector("#cloudRefreshBtn");
+  const logoutBtn = panel.querySelector("#cloudLogoutBtn");
+
+  function setStatus(text, ok = false, bad = false) {
+    statusEl.textContent = text;
+    statusEl.style.color = bad ? "#ffb4b4" : (ok ? "#9ed7ad" : "#a7b0be");
+  }
+
+  function showLoggedOut() {
+    currentUser = null;
+    loggedOutEl.style.display = "block";
+    loggedInEl.style.display = "none";
+    setStatus("Not signed in — progress is only on this device.");
+  }
+
+  function showLoggedIn(user) {
+    loggedOutEl.style.display = "none";
+    loggedInEl.style.display = "flex";
+    cloudUserEl.textContent = user.email ? `Signed in as ${user.email}` : "Signed in";
+  }
+
+  function snapshotProgress() {
+    return JSON.parse(JSON.stringify(progress || {}));
+  }
+
+  // ---------- Cloud reads/writes ----------
+  async function saveToCloud(snapshot) {
+    if (!currentUser) return;
+
+    try {
+      setStatus("Saving…");
+
+      const { error } = await db
+        .from(TABLE)
+        .upsert({
+          user_id: currentUser.id,
+          progress: snapshot,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
+
+      if (error) throw error;
+
+      lastCloudJson = JSON.stringify(snapshot);
+      setStatus("Synced ✓", true);
+    } catch (err) {
+      console.error("[Batman Sync] Save failed:", err);
+      setStatus("Cloud save failed — local copy is safe.", false, true);
+    }
+  }
+
+  function queueCloudSave(snapshot) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveToCloud(snapshot), SAVE_DELAY_MS);
+  }
+
+  async function loadFromCloud({ force = false } = {}) {
+    if (!currentUser || loadingCloud) return;
+
+    loadingCloud = true;
+    setStatus("Loading cloud progress…");
+
+    try {
+      const { data, error } = await db
+        .from(TABLE)
+        .select("progress, updated_at")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data?.progress) {
+        const cloudProgress = data.progress || {};
+        const cloudJson = JSON.stringify(cloudProgress);
+
+        if (force || cloudJson !== lastCloudJson) {
+          progress = cloudProgress;
+          saveLocal(progress);
+          lastCloudJson = cloudJson;
+          render();
+        }
+
+        setStatus("Synced ✓", true);
+      } else {
+        // First-ever cloud sync. Upload this browser's existing local progress.
+        await saveToCloud(snapshotProgress());
+      }
+    } catch (err) {
+      console.error("[Batman Sync] Load failed:", err);
+      setStatus("Cloud unavailable — using local progress.", false, true);
+    } finally {
+      loadingCloud = false;
+    }
+  }
+
+  // Replace the original save function.
+  // Existing checkbox/reset code automatically starts syncing now.
+  saveProgress = function syncedSaveProgress(newProgress) {
+    saveLocal(newProgress);
+
+    if (currentUser) {
+      queueCloudSave(JSON.parse(JSON.stringify(newProgress || {})));
+    }
+  };
+
+  // ---------- Login ----------
+  loginBtn.addEventListener("click", async () => {
+    const email = emailEl.value.trim();
+
+    if (!email) {
+      loginMessageEl.textContent = "Enter your email first.";
+      return;
+    }
+
+    loginBtn.disabled = true;
+    loginMessageEl.textContent = "Sending sign-in link…";
+
+    const redirectTo = window.location.origin + window.location.pathname;
+
+    const { error } = await db.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo }
+    });
+
+    loginBtn.disabled = false;
+
+    if (error) {
+      console.error("[Batman Sync] Login failed:", error);
+      loginMessageEl.textContent = error.message;
+      return;
+    }
+
+    loginMessageEl.textContent =
+      "Check your email and open the sign-in link on this device.";
+  });
+
+  emailEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") loginBtn.click();
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    await db.auth.signOut();
+    showLoggedOut();
+  });
+
+  refreshBtn.addEventListener("click", () => loadFromCloud({ force: true }));
+
+  // Pull newest progress when coming back to this tab/device.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && currentUser) loadFromCloud();
+  });
+
+  window.addEventListener("focus", () => {
+    if (currentUser) loadFromCloud();
+  });
+
+  // Retry local state after internet returns.
+  window.addEventListener("online", () => {
+    if (currentUser) saveToCloud(snapshotProgress());
+  });
+
+  db.auth.onAuthStateChange((_event, session) => {
+    const user = session?.user ?? null;
+
+    if (!user) {
+      showLoggedOut();
+      return;
+    }
+
+    currentUser = user;
+    showLoggedIn(user);
+
+    setTimeout(() => loadFromCloud({ force: true }), 0);
+  });
+
+  // Initial load.
+  (async () => {
+    const {
+      data: { session },
+      error
+    } = await db.auth.getSession();
+
+    if (error) {
+      console.error("[Batman Sync] Session check failed:", error);
+      showLoggedOut();
+      return;
+    }
+
+    if (session?.user) {
+      currentUser = session.user;
+      showLoggedIn(currentUser);
+      await loadFromCloud({ force: true });
+    } else {
+      showLoggedOut();
+    }
+  })();
+})();
+</script>
+
 </body>
 </html>
