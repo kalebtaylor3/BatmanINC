@@ -415,13 +415,16 @@ render();
 
 <script>
 /*
-  Batman INC Cross-Device Sync
-  Supabase project: bwovdylryxmmpfjatnqe
+  Batman INC — Email + Password Cross-Device Sync
 
-  Uses the Supabase publishable key (safe for browser use with RLS enabled).
-  IMPORTANT: In Supabase, run the batman_progress SQL setup once and add:
-  https://kalebtaylor3.github.io/BatmanINC/
-  to Authentication > URL Configuration > Redirect URLs.
+  Supabase project:
+  bwovdylryxmmpfjatnqe
+
+  This uses a PUBLIC/PUBLISHABLE browser key. Never place a service_role
+  or secret key in this public GitHub Pages file.
+
+  For NO auth emails at all:
+  In Supabase Authentication settings, disable email confirmation.
 */
 (() => {
   "use strict";
@@ -436,13 +439,12 @@ render();
     return;
   }
 
-  // The original tracker above already defines progress, saveProgress(), and render().
   if (
     typeof saveProgress !== "function" ||
     typeof render !== "function" ||
     typeof progress === "undefined"
   ) {
-    console.error("[Batman Sync] Original tracker variables were not found.");
+    console.error("[Batman Sync] Tracker variables were not found.");
     return;
   }
 
@@ -450,11 +452,11 @@ render();
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: false
     }
   });
 
-  // Keep the original localStorage save as a fallback/offline copy.
+  // Preserve the original localStorage save as an offline backup.
   const saveLocal = saveProgress;
 
   let currentUser = null;
@@ -484,14 +486,13 @@ render();
     </div>
 
     <div id="cloudLoggedOut" style="margin-top:10px;display:none;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(160px,1fr);gap:8px;">
         <input
           id="cloudEmail"
           type="email"
           autocomplete="email"
-          placeholder="your@email.com"
+          placeholder="Email"
           style="
-            flex:1 1 220px;
             min-width:0;
             border:1px solid #2a313c;
             border-radius:10px;
@@ -501,19 +502,51 @@ render();
             font:inherit;
           "
         >
-        <button id="cloudLoginBtn" type="button">Email me a sign-in link</button>
+        <input
+          id="cloudPassword"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Password"
+          style="
+            min-width:0;
+            border:1px solid #2a313c;
+            border-radius:10px;
+            background:#0b0d10;
+            color:#f3f4f6;
+            padding:10px 12px;
+            font:inherit;
+          "
+        >
       </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button id="cloudLoginBtn" type="button">Sign In</button>
+        <button id="cloudSignupBtn" type="button">Create Account</button>
+      </div>
+
       <div id="cloudLoginMessage"
-           style="margin-top:8px;color:#a7b0be;font-size:12px;"></div>
+           style="margin-top:8px;color:#a7b0be;font-size:12px;line-height:1.4;"></div>
     </div>
 
     <div id="cloudLoggedIn"
          style="margin-top:10px;display:none;align-items:center;gap:8px;flex-wrap:wrap;">
       <span id="cloudUser" style="color:#a7b0be;font-size:13px;"></span>
       <button id="cloudRefreshBtn" type="button">Sync Now</button>
+      <button id="cloudPasswordBtn" type="button">Set / Change Password</button>
       <button id="cloudLogoutBtn" type="button">Sign Out</button>
     </div>
   `;
+
+  // Make the login inputs stack nicely on narrow phones.
+  const responsive = document.createElement("style");
+  responsive.textContent = `
+    @media (max-width: 560px) {
+      #cloudLoggedOut > div:first-child {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  `;
+  document.head.appendChild(responsive);
 
   const toolbar = document.querySelector(".toolbar");
   if (toolbar?.parentNode) {
@@ -526,15 +559,23 @@ render();
   const loggedOutEl = panel.querySelector("#cloudLoggedOut");
   const loggedInEl = panel.querySelector("#cloudLoggedIn");
   const emailEl = panel.querySelector("#cloudEmail");
+  const passwordEl = panel.querySelector("#cloudPassword");
   const loginBtn = panel.querySelector("#cloudLoginBtn");
+  const signupBtn = panel.querySelector("#cloudSignupBtn");
   const loginMessageEl = panel.querySelector("#cloudLoginMessage");
   const cloudUserEl = panel.querySelector("#cloudUser");
   const refreshBtn = panel.querySelector("#cloudRefreshBtn");
+  const passwordBtn = panel.querySelector("#cloudPasswordBtn");
   const logoutBtn = panel.querySelector("#cloudLogoutBtn");
 
   function setStatus(text, ok = false, bad = false) {
     statusEl.textContent = text;
     statusEl.style.color = bad ? "#ffb4b4" : (ok ? "#9ed7ad" : "#a7b0be");
+  }
+
+  function setMessage(text, bad = false) {
+    loginMessageEl.textContent = text;
+    loginMessageEl.style.color = bad ? "#ffb4b4" : "#a7b0be";
   }
 
   function showLoggedOut() {
@@ -552,6 +593,25 @@ render();
 
   function snapshotProgress() {
     return JSON.parse(JSON.stringify(progress || {}));
+  }
+
+  function getCredentials() {
+    return {
+      email: emailEl.value.trim(),
+      password: passwordEl.value
+    };
+  }
+
+  function validateCredentials(email, password) {
+    if (!email) {
+      setMessage("Enter your email.", true);
+      return false;
+    }
+    if (!password || password.length < 6) {
+      setMessage("Password must be at least 6 characters.", true);
+      return false;
+    }
+    return true;
   }
 
   // ---------- Cloud reads/writes ----------
@@ -612,7 +672,7 @@ render();
 
         setStatus("Synced ✓", true);
       } else {
-        // First-ever cloud sync. Upload this browser's existing local progress.
+        // First cloud use for this account: upload this browser's current progress.
         await saveToCloud(snapshotProgress());
       }
     } catch (err) {
@@ -623,8 +683,8 @@ render();
     }
   }
 
-  // Replace the original save function.
-  // Existing checkbox/reset code automatically starts syncing now.
+  // Existing checkbox/reset code calls saveProgress(), so this adds cloud saves
+  // without changing the rest of the tracker.
   saveProgress = function syncedSaveProgress(newProgress) {
     saveLocal(newProgress);
 
@@ -633,39 +693,103 @@ render();
     }
   };
 
-  // ---------- Login ----------
+  // ---------- Password authentication ----------
   loginBtn.addEventListener("click", async () => {
-    const email = emailEl.value.trim();
-
-    if (!email) {
-      loginMessageEl.textContent = "Enter your email first.";
-      return;
-    }
+    const { email, password } = getCredentials();
+    if (!validateCredentials(email, password)) return;
 
     loginBtn.disabled = true;
-    loginMessageEl.textContent = "Sending sign-in link…";
+    signupBtn.disabled = true;
+    setMessage("Signing in…");
 
-    const redirectTo = window.location.origin + window.location.pathname;
-
-    const { error } = await db.auth.signInWithOtp({
+    const { data, error } = await db.auth.signInWithPassword({
       email,
-      options: { emailRedirectTo: redirectTo }
+      password
     });
 
     loginBtn.disabled = false;
+    signupBtn.disabled = false;
 
     if (error) {
-      console.error("[Batman Sync] Login failed:", error);
-      loginMessageEl.textContent = error.message;
+      console.error("[Batman Sync] Sign-in failed:", error);
+      setMessage(error.message, true);
       return;
     }
 
-    loginMessageEl.textContent =
-      "Check your email and open the sign-in link on this device.";
+    currentUser = data.user;
+    showLoggedIn(currentUser);
+    setMessage("");
+    await loadFromCloud({ force: true });
   });
 
-  emailEl.addEventListener("keydown", (event) => {
+  signupBtn.addEventListener("click", async () => {
+    const { email, password } = getCredentials();
+    if (!validateCredentials(email, password)) return;
+
+    loginBtn.disabled = true;
+    signupBtn.disabled = true;
+    setMessage("Creating account…");
+
+    const { data, error } = await db.auth.signUp({
+      email,
+      password
+    });
+
+    loginBtn.disabled = false;
+    signupBtn.disabled = false;
+
+    if (error) {
+      console.error("[Batman Sync] Sign-up failed:", error);
+      setMessage(error.message, true);
+      return;
+    }
+
+    if (data.session?.user) {
+      currentUser = data.session.user;
+      showLoggedIn(currentUser);
+      setMessage("");
+      await loadFromCloud({ force: true });
+    } else {
+      setMessage(
+        "Account created, but Supabase email confirmation is enabled. Disable Confirm Email in Supabase Auth settings to sign in without any emails."
+      );
+    }
+  });
+
+  passwordEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") loginBtn.click();
+  });
+
+  // Useful when migrating from the old magic-link version:
+  // if this browser still has a valid Supabase session, you can give that
+  // existing account a password without losing the same user ID/cloud row.
+  passwordBtn.addEventListener("click", async () => {
+    const nextPassword = window.prompt("Enter a new password (minimum 6 characters):");
+    if (nextPassword === null) return;
+
+    if (nextPassword.length < 6) {
+      alert("Password must be at least 6 characters.");
+      return;
+    }
+
+    passwordBtn.disabled = true;
+    setStatus("Updating password…");
+
+    const { error } = await db.auth.updateUser({
+      password: nextPassword
+    });
+
+    passwordBtn.disabled = false;
+
+    if (error) {
+      console.error("[Batman Sync] Password update failed:", error);
+      setStatus("Password update failed.", false, true);
+      alert(error.message);
+      return;
+    }
+
+    setStatus("Password updated ✓", true);
+    alert("Password updated. You can now sign in on your other devices with this email and password.");
   });
 
   logoutBtn.addEventListener("click", async () => {
@@ -675,7 +799,6 @@ render();
 
   refreshBtn.addEventListener("click", () => loadFromCloud({ force: true }));
 
-  // Pull newest progress when coming back to this tab/device.
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && currentUser) loadFromCloud();
   });
@@ -684,7 +807,6 @@ render();
     if (currentUser) loadFromCloud();
   });
 
-  // Retry local state after internet returns.
   window.addEventListener("online", () => {
     if (currentUser) saveToCloud(snapshotProgress());
   });
@@ -699,11 +821,10 @@ render();
 
     currentUser = user;
     showLoggedIn(user);
-
     setTimeout(() => loadFromCloud({ force: true }), 0);
   });
 
-  // Initial load.
+  // Initial session check.
   (async () => {
     const {
       data: { session },
@@ -726,6 +847,5 @@ render();
   })();
 })();
 </script>
-
 </body>
 </html>
