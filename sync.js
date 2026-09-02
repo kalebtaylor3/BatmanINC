@@ -26,8 +26,8 @@
   // ==========================================================
   // EDIT THESE TWO VALUES
   // ==========================================================
-  const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
-  const SUPABASE_KEY = "PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY_HERE";
+  const SUPABASE_URL = "http://bwovdylryxmmpfjatnqe.superbase.co";
+  const SUPABASE_KEY = "sb_publishable_S91xlot8elDhgiyh-LhFLQ_LXsA8PfV";
   // ==========================================================
 
   const TABLE = "batman_progress";
